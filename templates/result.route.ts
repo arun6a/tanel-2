@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 // POST /api/remote-cmd/result
-// Body: { id, result, error, exitCode }
+// Body: { id, channel, result, error, exitCode }
 // Auth: Bearer token
 export async function POST(request: NextRequest) {
   if (!checkAuth(request)) return unauthorizedResponse()
@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const r: CmdResult = {
       id: body?.id ?? null,
+      channel: body?.channel ?? null,
       result: body?.result ?? null,
       error: body?.error ?? null,
       exitCode: body?.exitCode ?? null,
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
 }
 
 // GET /api/remote-cmd/result
-// Returns the latest result posted by the poller.
+// Returns the latest result posted by any poller (includes channel field).
 // Auth: Bearer token
 export async function GET(request: NextRequest) {
   if (!checkAuth(request)) return unauthorizedResponse()
