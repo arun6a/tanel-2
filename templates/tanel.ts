@@ -1,37 +1,51 @@
 // tanel-2 shared state and auth for the remote-cmd command queue.
-// Lives inside the Next.js dev server process — resets on server restart,
-// which is fine for our use case.
+// Multi-channel support: each poller declares a channel, commands can be
+// targeted to a specific channel. Default channel is "default" (backward compatible).
 
 export interface QueuedCmd {
   id: number
   cmd: string
+  channel: string
 }
 
 export interface CmdResult {
   id: number | null
+  channel: string | null
   result: string | null
   error: string | null
   exitCode: number | null
   ts: number
 }
 
+const DEFAULT_CHANNEL = 'default'
+
 // Module-level state — persists across requests within the same server process.
 // Uses globalThis to survive HMR in dev.
 const globalForTanel = globalThis as unknown as {
-  __tanelQueue?: QueuedCmd[]
+  __tanelQueues?: Map<string, QueuedCmd[]>
   __tanelResult?: CmdResult
   __tanelCounter?: number
 }
 
-if (!globalForTanel.__tanelQueue) {
-  globalForTanel.__tanelQueue = []
-  globalForTanel.__tanelResult = { id: null, result: null, error: null, exitCode: null, ts: 0 }
+if (!globalForTanel.__tanelQueues) {
+  globalForTanel.__tanelQueues = new Map<string, QueuedCmd[]>()
+  globalForTanel.__tanelQueues.set(DEFAULT_CHANNEL, [])
+  globalForTanel.__tanelResult = { id: null, channel: null, result: null, error: null, exitCode: null, ts: 0 }
   globalForTanel.__tanelCounter = 0
 }
 
-export const cmdQueue = globalForTanel.__tanelQueue!
+export const cmdQueues = globalForTanel.__tanelQueues!
 export let lastResult = globalForTanel.__tanelResult!
 export let cmdCounter = globalForTanel.__tanelCounter!
+
+export function getQueue(channel: string): QueuedCmd[] {
+  if (!cmdQueues.has(channel)) cmdQueues.set(channel, [])
+  return cmdQueues.get(channel)!
+}
+
+export function listChannels(): { channel: string; queued: number }[] {
+  return Array.from(cmdQueues.entries()).map(([channel, q]) => ({ channel, queued: q.length }))
+}
 
 export function nextCmdId(): number {
   cmdCounter += 1
@@ -40,7 +54,7 @@ export function nextCmdId(): number {
 }
 
 export function clearResult(): void {
-  lastResult = { id: null, result: null, error: null, exitCode: null, ts: 0 }
+  lastResult = { id: null, channel: null, result: null, error: null, exitCode: null, ts: 0 }
   globalForTanel.__tanelResult = lastResult
 }
 
@@ -71,3 +85,5 @@ export function checkAuth(request: Request): boolean {
 export function unauthorizedResponse(): Response {
   return Response.json({ error: 'Unauthorized' }, { status: 401 })
 }
+
+export { DEFAULT_CHANNEL }
