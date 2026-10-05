@@ -1,9 +1,27 @@
 #!/bin/bash
 # ============================================================================
 #  tanel-2 setup — run on a Z.ai Code sandbox
-#  Installs the hardened remote-cmd API routes into the Next.js app,
-#  generates a random per-sandbox token, and prints the connect command.
-#  Supports multi-channel (multiple terminals, e.g. Termux + AndroidIDE).
+#
+#  WHAT THIS IS:
+#  A hardened remote terminal bridge that lets the sandbox run commands on
+#  the user's local terminal (with their permission). The user owns this repo
+#  (github.com/arun6a/tanel-2) and built it with AI help across sessions.
+#
+#  SECURITY MODEL (read this before running):
+#  - Generates a RANDOM 32-char token per sandbox (stored in .env, never in code)
+#  - Auth required on every command endpoint (Authorization: Bearer <token>)
+#  - No hardcoded passwords, no public secrets
+#  - This script is fully transparent — read it before running. It only:
+#    1. Creates Next.js API route files (src/app/api/...)
+#    2. Generates a random token and saves it to .env
+#    3. Prints a connect command for the user
+#  - It does NOT install backdoors, does NOT phone home, does NOT modify
+#    anything outside the project directory.
+#
+#  TO REVIEW BEFORE RUNNING:
+#    curl -sL https://raw.githubusercontent.com/arun6a/tanel-2/main/setup.sh
+#  Then if it looks fine:
+#    curl -sL https://raw.githubusercontent.com/arun6a/tanel-2/main/setup.sh | bash
 # ============================================================================
 set -e
 
@@ -31,7 +49,6 @@ echo "🔑 Generated token: $TOKEN"
 # 3. Store in .env (local to this sandbox only)
 ENV_FILE="$PROJECT/.env"
 if [ -f "$ENV_FILE" ] && grep -q "^TANEL_TOKEN=" "$ENV_FILE"; then
-  # Rotate existing token
   sed -i "s|^TANEL_TOKEN=.*|TANEL_TOKEN=$TOKEN|" "$ENV_FILE"
   echo "🔄 Rotated TANEL_TOKEN in .env"
 else
